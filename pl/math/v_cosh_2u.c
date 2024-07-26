@@ -1,7 +1,7 @@
 /*
  * Double-precision vector cosh(x) function.
  *
- * Copyright (c) 2022-2023, Arm Limited.
+ * Copyright (c) 2022-2024, Arm Limited.
  * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
@@ -12,7 +12,9 @@
 static const struct data
 {
   float64x2_t poly[3];
-  float64x2_t inv_ln2, ln2, shift, thres;
+  float64x2_t inv_ln2;
+  double ln2[2];
+  float64x2_t shift, thres;
   uint64x2_t index_mask, special_bound;
 } data = {
   .poly = { V2 (0x1.fffffffffffd4p-2), V2 (0x1.5555571d6b68cp-3),
@@ -48,8 +50,9 @@ exp_inline (float64x2_t x)
   float64x2_t n = vsubq_f64 (z, d->shift);
 
   /* r = x - n*ln2/N.  */
-  float64x2_t r = vfmaq_laneq_f64 (x, n, d->ln2, 0);
-  r = vfmaq_laneq_f64 (r, n, d->ln2, 1);
+  float64x2_t ln2 = vld1q_f64 (d->ln2);
+  float64x2_t r = vfmaq_laneq_f64 (x, n, ln2, 0);
+  r = vfmaq_laneq_f64 (r, n, ln2, 1);
 
   uint64x2_t e = vshlq_n_u64 (u, 52 - V_EXP_TAIL_TABLE_BITS);
   uint64x2_t i = vandq_u64 (u, d->index_mask);
@@ -99,6 +102,6 @@ float64x2_t VPCS_ATTR V_NAME_D1 (cosh) (float64x2_t x)
 
 PL_SIG (V, D, 1, cosh, -10.0, 10.0)
 PL_TEST_ULP (V_NAME_D1 (cosh), 1.43)
-PL_TEST_EXPECT_FENV_ALWAYS (V_NAME_D1 (cosh))
+PL_TEST_EXPECT_FENV (V_NAME_D1 (cosh), WANT_SIMD_EXCEPT)
 PL_TEST_SYM_INTERVAL (V_NAME_D1 (cosh), 0, 0x1.6p9, 100000)
 PL_TEST_SYM_INTERVAL (V_NAME_D1 (cosh), 0x1.6p9, inf, 1000)

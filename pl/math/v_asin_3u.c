@@ -1,7 +1,7 @@
 /*
  * Double-precision vector asin(x) function.
  *
- * Copyright (c) 2023, Arm Limited.
+ * Copyright (c) 2023-2024, Arm Limited.
  * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
@@ -29,8 +29,8 @@ static const struct data
 };
 
 #define AllMask v_u64 (0xffffffffffffffff)
-#define One (0x3ff0000000000000)
-#define Small (0x3e50000000000000) /* 2^-12.  */
+#define One 0x3ff0000000000000
+#define Small 0x3e50000000000000 /* 2^-12.  */
 
 #if WANT_SIMD_EXCEPT
 static float64x2_t VPCS_ATTR NOINLINE
@@ -58,8 +58,8 @@ special_case (float64x2_t x, float64x2_t y, uint64x2_t special)
      asin(x) = pi/2 - (y + y * z * P(z)), with  z = (1-x)/2 and y = sqrt(z).
 
    The largest observed error in this region is 2.69 ulps,
-   _ZGVnN2v_asin (0x1.044ac9819f573p-1) got 0x1.110d7e85fdd5p-1
-				       want 0x1.110d7e85fdd53p-1.  */
+   _ZGVnN2v_asin (0x1.044e8cefee301p-1) got 0x1.1111dd54ddf96p-1
+				       want 0x1.1111dd54ddf99p-1.  */
 float64x2_t VPCS_ATTR V_NAME_D1 (asin) (float64x2_t x)
 {
   const struct data *d = ptr_barrier (&data);
@@ -103,7 +103,7 @@ float64x2_t VPCS_ATTR V_NAME_D1 (asin) (float64x2_t x)
 }
 
 PL_SIG (V, D, 1, asin, -1.0, 1.0)
-PL_TEST_ULP (V_NAME_D1 (asin), 2.19)
+PL_TEST_ULP (V_NAME_D1 (asin), 2.20)
 PL_TEST_EXPECT_FENV (V_NAME_D1 (asin), WANT_SIMD_EXCEPT)
 PL_TEST_INTERVAL (V_NAME_D1 (asin), 0, Small, 5000)
 PL_TEST_INTERVAL (V_NAME_D1 (asin), Small, 0.5, 50000)

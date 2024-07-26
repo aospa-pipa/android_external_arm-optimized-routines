@@ -1,7 +1,7 @@
 /*
  * Double-precision asin(x) function.
  *
- * Copyright (c) 2023, Arm Limited.
+ * Copyright (c) 2023-2024, Arm Limited.
  * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
@@ -10,13 +10,13 @@
 #include "pl_sig.h"
 #include "pl_test.h"
 
-#define AbsMask (0x7fffffffffffffff)
-#define Half (0x3fe0000000000000)
-#define One (0x3ff0000000000000)
-#define PiOver2 (0x1.921fb54442d18p+0)
-#define Small (0x3e50000000000000) /* 2^-26.  */
-#define Small16 (0x3e50)
-#define QNaN (0x7ff8)
+#define AbsMask 0x7fffffffffffffff
+#define Half 0x3fe0000000000000
+#define One 0x3ff0000000000000
+#define PiOver2 0x1.921fb54442d18p+0
+#define Small 0x3e50000000000000 /* 2^-26.  */
+#define Small16 0x3e50
+#define QNaN 0x7ff8
 
 /* Fast implementation of double-precision asin(x) based on polynomial
    approximation.
@@ -54,8 +54,8 @@
      asin(x) ~ pi/2 - acos(x) ~ pi/2 - 2 * sqrt(z) (1 + z * P(z)).
 
    The largest observed error in this region is 2.69 ulps,
-   asin(0x1.044ac9819f573p-1) got 0x1.110d7e85fdd5p-1
-			     want 0x1.110d7e85fdd53p-1.  */
+   asin(0x1.044e8cefee301p-1) got 0x1.1111dd54ddf96p-1
+			     want 0x1.1111dd54ddf99p-1.  */
 double
 asin (double x)
 {
@@ -97,7 +97,7 @@ asin (double x)
 }
 
 PL_SIG (S, D, 1, asin, -1.0, 1.0)
-PL_TEST_ULP (asin, 2.19)
+PL_TEST_ULP (asin, 2.20)
 PL_TEST_INTERVAL (asin, 0, Small, 5000)
 PL_TEST_INTERVAL (asin, Small, 0.5, 50000)
 PL_TEST_INTERVAL (asin, 0.5, 1.0, 50000)

@@ -3,6 +3,21 @@
 # Copyright (c) 2019-2024, Arm Limited.
 # SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
 
+ifeq ($(OS),Darwin)
+  ifeq ($(WANT_SIMD_EXCEPT),1)
+    $(error WANT_SIMD_EXCEPT is not supported on Darwin)
+  endif
+  ifeq ($(WANT_SVE_MATH),1)
+    $(error WANT_SVE_MATH is not supported on Darwin)
+  endif
+  ifneq ($(USE_MPFR),1)
+    $(warning WARNING: Double-precision ULP tests will not be usable without MPFR)
+  endif
+  ifeq ($(USE_GLIBC_ABI),1)
+    $(error Can only generate special GLIBC symbols on Linux - please disable USE_GLIBC_ABI)
+  endif
+endif
+
 PLM := $(srcdir)/pl/math
 AOR := $(srcdir)/math
 B := build/pl/math
@@ -61,17 +76,35 @@ $(math-host-objs): CFLAGS_PL = $(HOST_CFLAGS)
 
 $(B)/sv_%: CFLAGS_PL += $(math-sve-cflags)
 
-build/pl/include/test/ulp_funcs_gen.h: $(pl-lib-srcs)
-	# Replace PL_SIG
-	cat $^ | grep PL_SIG | $(CC) -xc - -o - -E "-DPL_SIG(v, t, a, f, ...)=_Z##v##t##a(f)" -P > $@
+ulp-funcs-dir = build/pl/test/ulp-funcs/
+ulp-wrappers-dir = build/pl/test/ulp-wrappers/
+mathbench-funcs-dir = build/pl/test/mathbench-funcs/
+plsig-dirs = $(ulp-funcs-dir) $(ulp-wrappers-dir) $(mathbench-funcs-dir)
 
-build/pl/include/test/mathbench_funcs_gen.h: $(pl-lib-srcs)
-	# Replace PL_SIG macros with mathbench func entries
-	cat $^ | grep PL_SIG | $(CC) -xc - -o - -E "-DPL_SIG(v, t, a, f, ...)=_Z##v##t##a(f, ##__VA_ARGS__)" -P > $@
+$(plsig-dirs):
+	mkdir -p $@
 
-build/pl/include/test/ulp_wrappers_gen.h: $(pl-lib-srcs)
-	# Replace PL_SIG macros with ULP wrapper declarations
-	cat $^ | grep PL_SIG | $(CC) -xc - -o - -E "-DPL_SIG(v, t, a, f, ...)=Z##v##N##t##a##_WRAP(f)" -P > $@
+ulp-funcs = $(patsubst $(PLM)/%,$(ulp-funcs-dir)%,$(basename $(pl-lib-srcs)))
+ulp-wrappers = $(patsubst $(PLM)/%,$(ulp-wrappers-dir)%,$(basename $(pl-lib-srcs)))
+mathbench-funcs = $(patsubst $(PLM)/%,$(mathbench-funcs-dir)%,$(basename $(pl-lib-srcs)))
+plsig-autogen-files = $(ulp-funcs) $(ulp-wrappers) $(mathbench-funcs)
+
+$(ulp-funcs): PLSIG_DIRECTIVE = EMIT_ULP_FUNCS
+$(ulp-wrappers): PLSIG_DIRECTIVE = EMIT_ULP_WRAPPERS
+$(mathbench-funcs): PLSIG_DIRECTIVE = EMIT_MATHBENCH_FUNCS
+
+.SECONDEXPANSION:
+$(plsig-autogen-files): %: $(PLM)/$$(notdir $$@).c | $$(dir $$@)
+	$(CC) $< $(CFLAGS_PL) -D$(PLSIG_DIRECTIVE) -E -o - | { grep PL_SIG || true; } | cut -f 2- -d ' ' > $@
+
+build/pl/include/test/ulp_funcs_gen.h: $(ulp-funcs)
+	cat $^ | sort -u > $@
+
+build/pl/include/test/ulp_wrappers_gen.h: $(ulp-wrappers)
+	cat $^ > $@
+
+build/pl/include/test/mathbench_funcs_gen.h: $(mathbench-funcs)
+	cat $^ | sort -u > $@
 
 $(B)/test/ulp.o: $(AOR)/test/ulp.h build/pl/include/test/ulp_funcs_gen.h build/pl/include/test/ulp_wrappers_gen.h
 $(B)/test/ulp.o: CFLAGS_PL += -I build/pl/include/test
@@ -91,6 +124,9 @@ $(math-host-tools): HOST_LDLIBS += -lm -lmpfr -lmpc
 $(math-tools): LDLIBS += $(math-ldlibs) -lm
 # math-sve-cflags should be empty if WANT_SVE_MATH is not enabled
 $(math-tools): CFLAGS_PL += $(math-sve-cflags)
+ifneq ($(OS),Darwin)
+  $(math-tools): LDFLAGS += -static
+endif
 
 # Some targets to build pl/math/test from math/test sources
 build/pl/math/test/%.o: $(srcdir)/math/test/%.S
@@ -122,17 +158,17 @@ build/pl/bin/rtest: $(math-host-objs)
 	$(HOST_CC) $(HOST_CFLAGS) $(HOST_LDFLAGS) -o $@ $^ $(HOST_LDLIBS)
 
 build/pl/bin/mathtest: $(B)/test/mathtest.o build/pl/lib/libmathlib.a
-	$(CC) $(CFLAGS_PL) $(LDFLAGS) -static -o $@ $^ $(LDLIBS)
+	$(CC) $(CFLAGS_PL) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 build/pl/bin/mathbench: $(B)/test/mathbench.o build/pl/lib/libmathlib.a
-	$(CC) $(CFLAGS_PL) $(LDFLAGS) -static -o $@ $^ $(LDLIBS)
+	$(CC) $(CFLAGS_PL) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 # This is not ideal, but allows custom symbols in mathbench to get resolved.
 build/pl/bin/mathbench_libc: $(B)/test/mathbench.o build/pl/lib/libmathlib.a
-	$(CC) $(CFLAGS_PL) $(LDFLAGS) -static -o $@ $< $(LDLIBS) -lc build/pl/lib/libmathlib.a -lm
+	$(CC) $(CFLAGS_PL) $(LDFLAGS) -o $@ $< $(LDLIBS) -lc build/pl/lib/libmathlib.a -lm
 
 build/pl/bin/ulp: $(B)/test/ulp.o build/pl/lib/libmathlib.a
-	$(CC) $(CFLAGS_PL) $(LDFLAGS) -static -o $@ $^ $(LDLIBS)
+	$(CC) $(CFLAGS_PL) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 build/pl/include/%.h: $(PLM)/include/%.h
 	cp $< $@
@@ -153,6 +189,8 @@ check-pl/math-rtest: $(math-host-tools) $(math-tools)
 	cat $(pl-math-rtests) | build/pl/bin/rtest | $(EMULATOR) build/pl/bin/mathtest $(math-testflags)
 
 ulp-input-dir=$(B)/test/inputs
+$(ulp-input-dir):
+	mkdir -p $@
 
 math-lib-lims = $(patsubst $(PLM)/%,$(ulp-input-dir)/%.ulp,$(basename $(pl-lib-srcs)))
 math-lib-fenvs = $(patsubst $(PLM)/%,$(ulp-input-dir)/%.fenv,$(basename $(pl-lib-srcs)))
@@ -162,16 +200,13 @@ ulp-inputs = $(math-lib-lims) $(math-lib-fenvs) $(math-lib-itvs)
 
 $(ulp-inputs): CFLAGS_PL += -I$(PLM) -I$(PLM)/include $(math-cflags)
 
-$(ulp-input-dir)/%.ulp: $(PLM)/%.c
-	mkdir -p $(@D)
+$(ulp-input-dir)/%.ulp: $(PLM)/%.c | $(ulp-input-dir)
 	$(CC) -I$(PLM)/test $(CFLAGS_PL) $< -o - -E | { grep -o "PL_TEST_ULP [^ ]* [^ ]*" || true; } > $@
 
-$(ulp-input-dir)/%.fenv: $(PLM)/%.c
-	mkdir -p $(@D)
+$(ulp-input-dir)/%.fenv: $(PLM)/%.c | $(ulp-input-dir)
 	$(CC) -I$(PLM)/test $(CFLAGS_PL) $< -o - -E | { grep -o "PL_TEST_EXPECT_FENV_ENABLED [^ ]*" || true; } > $@
 
-$(ulp-input-dir)/%.itv: $(PLM)/%.c
-	mkdir -p $(dir $@)
+$(ulp-input-dir)/%.itv: $(PLM)/%.c | $(ulp-input-dir)
 	$(CC) -I$(PLM)/test $(CFLAGS_PL) $< -o - -E | { grep "PL_TEST_INTERVAL " || true; } | sed "s/ PL_TEST_INTERVAL/\nPL_TEST_INTERVAL/g" > $@
 
 ulp-lims := $(ulp-input-dir)/limits
@@ -193,6 +228,8 @@ check-pl/math-ulp: $(math-tools) $(ulp-lims) $(fenv-exps) $(ulp-itvs)
 	INTERVALS=../../../$(ulp-itvs) \
 	FENV=../../../$(fenv-exps) \
 	FUNC=$(func) \
+	PRED=$(pred) \
+	USE_MPFR=$(USE_MPFR) \
 	build/pl/bin/runulp.sh $(EMULATOR)
 
 check-pl/math: check-pl/math-test check-pl/math-rtest check-pl/math-ulp
