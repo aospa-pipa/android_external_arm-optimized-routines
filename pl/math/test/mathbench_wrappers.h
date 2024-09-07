@@ -23,6 +23,22 @@ powi_wrap (double x)
   return __builtin_powi (x, (int) round (x));
 }
 
+static float
+sincospif_wrap (float x)
+{
+  float s, c;
+  sincospif (x, &s, &c);
+  return s + c;
+}
+
+static double
+sincospi_wrap (double x)
+{
+  double s, c;
+  sincospi (x, &s, &c);
+  return s + c;
+}
+
 #if __aarch64__ && defined(__vpcs)
 
 __vpcs static v_double
@@ -54,6 +70,14 @@ _Z_modff_wrap (v_float x)
 {
   v_float y;
   v_float ret = _ZGVnN4vl4_modff (x, &y);
+  return ret + y;
+}
+
+__vpcs static v_double
+_Z_modf_wrap (v_double x)
+{
+  v_double y;
+  v_double ret = _ZGVnN2vl8_modf (x, &y);
   return ret + y;
 }
 
@@ -98,6 +122,22 @@ _Z_sincos_wrap (v_double x)
   return s + c;
 }
 
+__vpcs static v_float
+_Z_sincospif_wrap (v_float x)
+{
+  v_float s, c;
+  _ZGVnN4vl4l4_sincospif (x, &s, &c);
+  return s + c;
+}
+
+__vpcs static v_double
+_Z_sincospi_wrap (v_double x)
+{
+  v_double s, c;
+  _ZGVnN2vl8l8_sincospi (x, &s, &c);
+  return s + c;
+}
+
 __vpcs static v_double
 _Z_cexpi_wrap (v_double x)
 {
@@ -131,6 +171,22 @@ static sv_double
 _Z_sv_hypot_wrap (sv_double x, sv_bool pg)
 {
   return _ZGVsMxvv_hypot (x, svdup_f64 (5.0), pg);
+}
+
+static sv_float
+_Z_sv_modff_wrap (sv_float x, sv_bool pg)
+{
+  float i[svcntw ()];
+  svfloat32_t r = _ZGVsMxvl4_modff (x, i, pg);
+  return svadd_x (pg, r, svld1 (pg, i));
+}
+
+static sv_double
+_Z_sv_modf_wrap (sv_double x, sv_bool pg)
+{
+  double i[svcntd ()];
+  svfloat64_t r = _ZGVsMxvl8_modf (x, i, pg);
+  return svadd_x (pg, r, svld1 (pg, i));
 }
 
 static sv_float

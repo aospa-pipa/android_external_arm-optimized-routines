@@ -28,6 +28,8 @@ float sinhf (float);
 float sinpif (float);
 float tanf (float);
 float tanhf (float);
+void sincospif (float, float *, float *);
+void sincospi (double, double *, double *);
 
 double acos (double);
 double acosh (double);
@@ -120,6 +122,7 @@ __vpcs __f64x2_t _ZGVnN2v_log1p (__f64x2_t);
 __vpcs __f32x4_t _ZGVnN4v_log2f (__f32x4_t);
 __vpcs __f64x2_t _ZGVnN2v_log2 (__f64x2_t);
 __vpcs __f32x4_t _ZGVnN4vl4_modff (__f32x4_t, __f32x4_t *);
+__vpcs __f64x2_t _ZGVnN2vl8_modf (__f64x2_t, __f64x2_t *);
 __vpcs __f64x2_t _ZGVnN2vv_pow (__f64x2_t, __f64x2_t);
 __vpcs __f32x4_t _ZGVnN4v_sinhf (__f32x4_t);
 __vpcs __f64x2_t _ZGVnN2v_sinh (__f64x2_t);
@@ -131,6 +134,8 @@ __vpcs __f32x4_t _ZGVnN4v_tanhf (__f32x4_t);
 __vpcs __f64x2_t _ZGVnN2v_tanh (__f64x2_t);
 __vpcs void _ZGVnN4vl4l4_sincosf (__f32x4_t, __f32x4_t *, __f32x4_t *);
 __vpcs void _ZGVnN2vl8l8_sincos (__f64x2_t, __f64x2_t *, __f64x2_t *);
+__vpcs void _ZGVnN4vl4l4_sincospif (__f32x4_t, __f32x4_t *, __f32x4_t *);
+__vpcs void _ZGVnN2vl8l8_sincospi (__f64x2_t, __f64x2_t *, __f64x2_t *);
 
 # endif
 
@@ -184,6 +189,8 @@ svfloat32_t _ZGVsMxv_log1pf (svfloat32_t, svbool_t);
 svfloat64_t _ZGVsMxv_log1p (svfloat64_t, svbool_t);
 svfloat32_t _ZGVsMxv_log2f (svfloat32_t, svbool_t);
 svfloat64_t _ZGVsMxv_log2 (svfloat64_t, svbool_t);
+svfloat32_t _ZGVsMxvl4_modff (svfloat32_t, float *, svbool_t);
+svfloat64_t _ZGVsMxvl8_modf (svfloat64_t, double *, svbool_t);
 svfloat32_t _ZGVsMxvv_powi (svfloat32_t, svint32_t, svbool_t);
 svfloat64_t _ZGVsMxvv_powk (svfloat64_t, svint64_t, svbool_t);
 svfloat32_t _ZGVsMxvv_powf (svfloat32_t, svfloat32_t, svbool_t);
