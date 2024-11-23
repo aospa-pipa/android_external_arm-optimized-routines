@@ -1,41 +1,30 @@
 /*
- * Single-precision log10 function.
+ * Single-precision log function.
  *
- * Copyright (c) 2022-2024, Arm Limited.
+ * Copyright (c) 2017-2023, Arm Limited.
  * SPDX-License-Identifier: MIT OR Apache-2.0 WITH LLVM-exception
  */
 
 #include <math.h>
 #include <stdint.h>
-
 #include "math_config.h"
-#include "test_sig.h"
-#include "test_defs.h"
 
-/* Data associated to logf:
+/*
+LOGF_TABLE_BITS = 4
+LOGF_POLY_ORDER = 4
 
-   LOGF_TABLE_BITS = 4
-   LOGF_POLY_ORDER = 4
-
-   ULP error: 0.818 (nearest rounding.)
-   Relative error: 1.957 * 2^-26 (before rounding.).  */
+ULP error: 0.818 (nearest rounding.)
+Relative error: 1.957 * 2^-26 (before rounding.)
+*/
 
 #define T __logf_data.tab
 #define A __logf_data.poly
 #define Ln2 __logf_data.ln2
-#define InvLn10 __logf_data.invln10
 #define N (1 << LOGF_TABLE_BITS)
 #define OFF 0x3f330000
 
-/* This naive implementation of log10f mimics that of log
-   then simply scales the result by 1/log(10) to switch from base e to
-   base 10. Hence, most computations are carried out in double precision.
-   Scaling before rounding to single precision is both faster and more
-   accurate.
-
-   ULP error: 0.797 ulp (nearest rounding.).  */
 float
-log10f (float x)
+optr_aor_log_f32 (float x)
 {
   /* double_t for better performance on targets with FLT_EVAL_METHOD==2.  */
   double_t z, r, r2, y, y0, invc, logc;
@@ -67,13 +56,13 @@ log10f (float x)
      The ith subinterval contains z and c is near its center.  */
   tmp = ix - OFF;
   i = (tmp >> (23 - LOGF_TABLE_BITS)) % N;
-  k = (int32_t) tmp >> 23; /* arithmetic shift.  */
-  iz = ix - (tmp & 0xff800000);
+  k = (int32_t) tmp >> 23; /* arithmetic shift */
+  iz = ix - (tmp & 0x1ff << 23);
   invc = T[i].invc;
   logc = T[i].logc;
   z = (double_t) asfloat (iz);
 
-  /* log(x) = log1p(z/c-1) + log(c) + k*Ln2.  */
+  /* log(x) = log1p(z/c-1) + log(c) + k*Ln2 */
   r = z * invc - 1;
   y0 = logc + (double_t) k * Ln2;
 
@@ -82,18 +71,5 @@ log10f (float x)
   y = A[1] * r + A[2];
   y = A[0] * r2 + y;
   y = y * r2 + (y0 + r);
-
-  /* Multiply by 1/log(10).  */
-  y = y * InvLn10;
-
   return eval_as_float (y);
 }
-
-TEST_SIG (S, F, 1, log10, 0.01, 11.1)
-TEST_ULP (log10f, 0.30)
-TEST_ULP_NONNEAREST (log10f, 0.5)
-TEST_INTERVAL (log10f, 0, 0xffff0000, 10000)
-TEST_INTERVAL (log10f, 0x1p-127, 0x1p-26, 50000)
-TEST_INTERVAL (log10f, 0x1p-26, 0x1p3, 50000)
-TEST_INTERVAL (log10f, 0x1p-4, 0x1p4, 50000)
-TEST_INTERVAL (log10f, 0, inf, 50000)
